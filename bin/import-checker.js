@@ -165,10 +165,10 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
 
       <!-- Import Details Modal -->
       <div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
-        <div class="bg-dark-nav rounded-lg max-w-2xl mx-auto mt-20 p-6 relative">
+        <div class="bg-dark-nav rounded-lg max-w-2xl mx-auto mt-10 p-6 relative max-h-[calc(100vh-50px)] overflow-hidden flex flex-col">
           <button class="close absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
           <h2 class="text-xl font-bold mb-4">Import Details</h2>
-          <div id="modalContent"></div>
+          <div id="modalContent" class="overflow-y-auto"></div>
         </div>
       </div>
 
@@ -408,6 +408,7 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
             \`;
             
             modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
           }
 
           function drag(simulation) {
@@ -439,9 +440,15 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
         const modal = document.getElementById('importModal');
         const closeBtn = document.querySelector('.close');
 
-        closeBtn.onclick = () => modal.style.display = 'none';
+        closeBtn.onclick = () => {
+          modal.style.display = 'none';
+          document.body.style.overflow = 'auto';
+        };
         window.onclick = (e) => {
-          if (e.target === modal) modal.style.display = 'none';
+          if (e.target === modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+          }
         };
 
         // Show first report by default
@@ -513,7 +520,10 @@ program
     const targetDir = path.resolve(process.cwd(), directory);
     console.log(chalk.blue(`Analyzing imports in: ${targetDir}`));
 
-    const imports = analyzeImports(targetDir, { generateHtml: options.html });
+    const imports = analyzeImports(targetDir, { 
+      generateHtml: options.html,
+      outputDir: process.cwd()
+    });
 
     if (imports.length === 0) {
       console.log(chalk.green("\n✓ No cross-feature imports found!"));
