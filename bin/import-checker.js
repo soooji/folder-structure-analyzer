@@ -16,7 +16,7 @@ function analyzeSiblingDirectories(parentDir, options) {
   // Create reports directory with parent directory name
   const parentDirName = path.basename(parentDir);
   const reportsBaseDir = path.join(
-    process.cwd(),
+    options.outputDir,
     `import-analysis-${parentDirName}`,
   );
   fs.ensureDirSync(reportsBaseDir);
@@ -126,10 +126,10 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
           <div class="mb-4 border-b border-gray-700">
             <ul class="flex flex-wrap -mb-px text-sm font-medium">
               <li class="mr-2">
-                <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-blue-500 text-blue-500" data-tab="list">Directory List</button>
+                <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-blue-500 text-blue-500 hover:text-gray-300 hover:border-gray-300 transition-colors" data-tab="list">Directory List</button>
               </li>
               <li class="mr-2">
-                <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-300 hover:border-gray-300" data-tab="graph">Graph View</button>
+                <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-300 hover:border-gray-300 transition-colors" data-tab="graph">Graph View</button>
               </li>
             </ul>
           </div>
@@ -533,13 +533,31 @@ program
   .argument("<directory>", "Target directory to analyze")
   .option("-v, --verbose", "Show detailed output")
   .option("--no-html", "Skip HTML report generation")
+  .option("-o, --output <path>", "Output directory path")
   .action((directory, options) => {
     const targetDir = path.resolve(process.cwd(), directory);
     console.log(chalk.blue(`Analyzing imports in: ${targetDir}`));
 
+    // Get output directory from config or CLI option
+    const configPath = path.join(process.cwd(), ".importcheckerrc.json");
+    let configOutputDir = null;
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        configOutputDir = config.outputDir;
+      } catch (error) {
+        // Ignore config parsing errors
+      }
+    }
+
+    const baseOutputDir =
+      options.output || configOutputDir || "import-analysis";
+    const outputDir = path.resolve(process.cwd(), baseOutputDir);
+
     const imports = analyzeImports(targetDir, {
       generateHtml: options.html,
-      outputDir: process.cwd(),
+      outputDir,
+      reportNamePrefix: "import-analysis-report",
     });
 
     if (imports.length === 0) {
@@ -577,9 +595,35 @@ program
   .argument("<directory>", "Parent directory containing siblings to analyze")
   .option("-v, --verbose", "Show detailed output")
   .option("--no-html", "Skip HTML report generation")
+  .option("-o, --output <path>", "Output directory path")
   .action((directory, options) => {
     const parentDir = path.resolve(process.cwd(), directory);
-    analyzeSiblingDirectories(parentDir, options);
+
+    // Get output directory from config or CLI option
+    const configPath = path.join(process.cwd(), ".importcheckerrc.json");
+    let configOutputDir = null;
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        configOutputDir = config.outputDir;
+      } catch (error) {
+        // Ignore config parsing errors
+      }
+    }
+
+    const baseOutputDir =
+      options.output || configOutputDir || "import-analysis";
+    const outputDir = path.resolve(process.cwd(), baseOutputDir);
+
+    // Create the base output directory if it doesn't exist
+    fs.ensureDirSync(outputDir);
+
+    // Modify the analyzeSiblingDirectories function call
+    analyzeSiblingDirectories(parentDir, {
+      // eslint-disable-next-line node/no-unsupported-features/es-syntax
+      ...options,
+      outputDir,
+    });
   });
 
 program.parse();

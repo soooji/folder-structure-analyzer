@@ -196,3 +196,65 @@ MIT
 ## Support
 
 For issues and feature requests, please use the GitHub issue tracker.
+
+## Configuration
+
+Create a `.importcheckerrc.json` file in your project root to configure import-checker:
+
+```json
+{
+  "baseUrl": ".",
+  "outputDir": "./import-analysis",
+  "aliases": {
+    "@/*": "src/*",
+    "@components/*": "src/components/*"
+  }
+}
+```
+
+### Configuration Options
+
+- `baseUrl`: The base directory for resolving aliases (default: ".")
+- `outputDir`: Directory where analysis reports will be saved (default: "./import-analysis")
+- `aliases`: An object mapping alias patterns to their actual paths
+
+## Command Options
+
+Both `check` and `check-siblings` commands support the following options:
+
+- `-v, --verbose`: Show detailed output
+- `--no-html`: Skip HTML report generation
+- `-o, --output <path>`: Specify output directory for reports
+
+Example:
+```bash
+# Use custom output directory
+import-checker check src/features/user -o ./custom-analysis
+
+# Default output directory (./import-analysis)
+import-checker check-siblings src/pages
+```
+
+## Output Structure
+
+Reports are organized in the following structure:
+
+```
+import-analysis/
+├── import-analysis-features/
+│   ├── index.html
+│   ├── user/
+│   │   ├── import-analysis.html
+│   │   └── import-analysis.json
+│   └── auth/
+│       ├── import-analysis.html
+│       └── import-analysis.json
+└── import-analysis-pages/
+    ├── index.html
+    ├── dashboard/
+    │   ├── import-analysis.html
+    │   └── import-analysis.json
+    └── settings/
+        ├── import-analysis.html
+        └── import-analysis.json
+```
