@@ -226,10 +226,54 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
           const width = document.getElementById('graphContainer').clientWidth;
           const height = document.getElementById('graphContainer').clientHeight;
 
+          // Create the main SVG container
           const svg = d3.select('#graphContainer')
             .append('svg')
             .attr('width', width)
             .attr('height', height);
+
+          // Add zoom behavior
+          const g = svg.append('g');
+          
+          const zoom = d3.zoom()
+            .scaleExtent([0.1, 4]) // Allow zoom from 0.1x to 4x
+            .on('zoom', (event) => {
+              g.attr('transform', event.transform);
+            });
+
+          svg.call(zoom);
+          
+          // Add zoom controls
+          const controls = d3.select('#graphContainer')
+            .append('div')
+            .attr('class', 'absolute top-4 right-4 flex gap-2');
+
+          controls.append('button')
+            .attr('class', 'p-2 bg-gray-800 hover:bg-gray-700 rounded text-white transition-colors')
+            .html('<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>')
+            .on('click', () => {
+              svg.transition()
+                .duration(500)
+                .call(zoom.scaleBy, 1.5);
+            });
+
+          controls.append('button')
+            .attr('class', 'p-2 bg-gray-800 hover:bg-gray-700 rounded text-white transition-colors')
+            .html('<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>')
+            .on('click', () => {
+              svg.transition()
+                .duration(500)
+                .call(zoom.scaleBy, 0.75);
+            });
+
+          controls.append('button')
+            .attr('class', 'p-2 bg-gray-800 hover:bg-gray-700 rounded text-white transition-colors')
+            .html('<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-2V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>')
+            .on('click', () => {
+              svg.transition()
+                .duration(500)
+                .call(zoom.transform, d3.zoomIdentity);
+            });
 
           const simulation = d3.forceSimulation(graphData.nodes)
             .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(150))
@@ -237,7 +281,7 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
             .force('center', d3.forceCenter(width / 2, height / 2));
 
           // Add arrow marker
-          svg.append('defs').selectAll('marker')
+          g.append('defs').selectAll('marker')
             .data(['end'])
             .join('marker')
             .attr('id', 'arrow')
@@ -252,11 +296,11 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
             .attr('d', 'M0,-5L10,0L0,5');
 
           // Add hover labels group
-          const labelGroup = svg.append('g')
+          const labelGroup = g.append('g')
             .attr('class', 'hover-labels')
             .style('pointer-events', 'none');
 
-          const link = svg.append('g')
+          const link = g.append('g')
             .selectAll('line')
             .data(graphData.links)
             .join('line')
@@ -268,7 +312,7 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
             .on('mouseout', hideLinkLabel)
             .on('click', showLinkDetails);
 
-          const node = svg.append('g')
+          const node = g.append('g')
             .selectAll('circle')
             .data(graphData.nodes)
             .join('circle')
@@ -277,7 +321,7 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
             .call(drag(simulation))
             .on('click', showDirectoryReport);
 
-          const label = svg.append('g')
+          const label = g.append('g')
             .selectAll('text')
             .data(graphData.nodes)
             .join('text')
@@ -420,6 +464,7 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
             document.body.style.overflow = 'hidden';
           }
 
+          // Update the drag function to work with zoom
           function drag(simulation) {
             function dragstarted(event) {
               if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -439,6 +484,7 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
             }
             
             return d3.drag()
+              .subject(d => d)
               .on('start', dragstarted)
               .on('drag', dragged)
               .on('end', dragended);
