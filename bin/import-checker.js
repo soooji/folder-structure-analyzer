@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-use-before-define */
 
 const { program } = require("commander");
 const chalk = require("chalk");
@@ -125,18 +126,24 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
           
           <!-- Directory List -->
           <div id="listView" class="tab-content">
-            ${reports.map(report => `
+            ${reports
+              .map(
+                (report) => `
               <div class="directory-item mb-2 group" onclick="showReport('${report.reportPath}')">
                 <div class="flex items-center justify-between p-3 rounded-lg bg-gray-900 hover:bg-gray-800 cursor-pointer transition-colors">
                   <span class="text-gray-200">${report.directory}</span>
-                  ${report.importCount > 0 ? 
-                    `<span class="px-2 py-1 text-xs rounded-full bg-red-500 text-white">
+                  ${
+                    report.importCount > 0
+                      ? `<span class="px-2 py-1 text-xs rounded-full bg-red-500 text-white">
                       ${report.importCount}
-                    </span>` : 
-                    ''}
+                    </span>`
+                      : ""
+                  }
                 </div>
               </div>
-            `).join('')}
+            `,
+              )
+              .join("")}
           </div>
 
           <!-- Graph Legend -->
@@ -461,36 +468,41 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
     </html>
   `;
 
-  fs.writeFileSync(path.join(baseDir, 'index.html'), template);
+  fs.writeFileSync(path.join(baseDir, "index.html"), template);
 }
 
 function prepareGraphData(reports, baseDir) {
-  const nodes = reports.map(report => ({
+  const nodes = reports.map((report) => ({
     id: report.directory,
     name: report.directory,
-    importCount: report.importCount
+    importCount: report.importCount,
   }));
 
   const links = [];
-  reports.forEach(report => {
+  reports.forEach((report) => {
     // Parse the JSON file to get import information
-    const jsonPath = path.join(baseDir, report.directory, 'import-analysis.json');
+    const jsonPath = path.join(
+      baseDir,
+      report.directory,
+      "import-analysis.json",
+    );
     try {
-      const reportData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+      const reportData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
 
       // Process the structure to find imports
+      // eslint-disable-next-line no-inner-declarations
       function processStructure(structure) {
-        Object.values(structure).forEach(node => {
-          if (node.type === 'file' && node.imports) {
-            node.imports.forEach(imp => {
+        Object.values(structure).forEach((node) => {
+          if (node.type === "file" && node.imports) {
+            node.imports.forEach((imp) => {
               links.push({
                 source: report.directory,
                 target: imp.siblingDirectory,
-                imports: [imp]
+                imports: [imp],
               });
             });
           }
-          if (node.type === 'directory' && node.children) {
+          if (node.type === "directory" && node.children) {
             processStructure(node.children);
           }
         });
@@ -498,7 +510,10 @@ function prepareGraphData(reports, baseDir) {
 
       processStructure(reportData.structure);
     } catch (error) {
-      console.error(`Error processing JSON for ${report.directory}:`, error.message);
+      console.error(
+        `Error processing JSON for ${report.directory}:`,
+        error.message,
+      );
     }
   });
 
@@ -520,9 +535,9 @@ program
     const targetDir = path.resolve(process.cwd(), directory);
     console.log(chalk.blue(`Analyzing imports in: ${targetDir}`));
 
-    const imports = analyzeImports(targetDir, { 
+    const imports = analyzeImports(targetDir, {
       generateHtml: options.html,
-      outputDir: process.cwd()
+      outputDir: process.cwd(),
     });
 
     if (imports.length === 0) {
