@@ -130,6 +130,61 @@ src/
         └── index.tsx
 ```
 
+## Alias Configuration
+
+If your project uses import aliases (configured in tsconfig.json or jsconfig.json), you'll need to configure these aliases for the import-checker to properly analyze cross-directory imports.
+
+Create a `.importcheckerrc.json` file in your project root:
+
+```json
+{
+  "baseUrl": ".",
+  "aliases": {
+    "@/*": "src/*",
+    "@components/*": "src/components/*",
+    "@pages/*": "src/pages/*",
+    "@features/*": "src/features/*",
+    "@utils/*": "src/utils/*"
+  }
+}
+```
+
+### Configuration Options
+
+- `baseUrl`: The base directory for resolving aliases (default: ".")
+- `aliases`: An object mapping alias patterns to their actual paths
+  - Keys should match your import aliases (with optional \* for wildcards)
+  - Values should be the actual paths (with \* to match the wildcard if used in the key)
+
+### Example Configurations
+
+1. Next.js style configuration:
+
+```json
+{
+  "baseUrl": ".",
+  "aliases": {
+    "@/*": "src/*"
+  }
+}
+```
+
+2. Custom paths configuration:
+
+```json
+{
+  "baseUrl": ".",
+  "aliases": {
+    "~/*": "src/*",
+    "lib/*": "src/lib/*",
+    "components": "src/components",
+    "@utils": "src/utils"
+  }
+}
+```
+
+Note: The alias patterns support both directory wildcards (with _) and exact matches (without _).
+
 ## Contributing
 
 Contributions are welcome! Please submit a Pull Request.

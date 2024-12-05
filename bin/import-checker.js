@@ -109,17 +109,27 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
       </script>
     </head>
     <body class="bg-dark-bg text-gray-200">
-      <div class="flex h-screen">
+      <!-- Header -->
+      <header class="bg-dark-nav border-b border-gray-800 px-6 py-4">
+        <div class="flex justify-between items-center">
+          <h1 class="text-xl font-bold text-white">Import Checker</h1>
+          <a href="https://www.npmjs.com/package/import-checker" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors">
+            View on NPM
+          </a>
+        </div>
+      </header>
+
+      <div class="flex h-[calc(100vh-64px)]">
         <!-- Tabs -->
         <div class="w-80 bg-dark-nav p-6 border-r border-gray-800 overflow-y-auto">
           <h1 class="text-2xl font-bold mb-6 text-white">${parentDirName} Analysis</h1>
           <div class="mb-4 border-b border-gray-700">
             <ul class="flex flex-wrap -mb-px text-sm font-medium">
               <li class="mr-2">
-                <a href="#" class="tab-btn active inline-block p-4 rounded-t-lg border-b-2 border-blue-500 text-blue-500" data-tab="list">Directory List</a>
+                <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-blue-500 text-blue-500" data-tab="list">Directory List</button>
               </li>
               <li class="mr-2">
-                <a href="#" class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-300 hover:border-gray-300" data-tab="graph">Graph View</a>
+                <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-300 hover:border-gray-300" data-tab="graph">Graph View</button>
               </li>
             </ul>
           </div>
@@ -170,15 +180,6 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
         </div>
       </div>
 
-      <!-- Import Details Modal -->
-      <div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
-        <div class="bg-dark-nav rounded-lg max-w-2xl mx-auto mt-10 p-6 relative max-h-[calc(100vh-50px)] overflow-hidden flex flex-col">
-          <button class="close absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
-          <h2 class="text-xl font-bold mb-4">Import Details</h2>
-          <div id="modalContent" class="overflow-y-auto"></div>
-        </div>
-      </div>
-
       <script>
         const graphData = ${JSON.stringify(prepareGraphData(reports, baseDir))};
 
@@ -190,10 +191,11 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
             
             // Update button states
             document.querySelectorAll('.tab-btn').forEach(b => {
-              b.classList.remove('active', 'border-blue-500', 'text-blue-500');
+              b.classList.remove('border-blue-500', 'text-blue-500');
               b.classList.add('border-transparent');
             });
-            btn.classList.add('active', 'border-blue-500', 'text-blue-500');
+            btn.classList.remove('border-transparent');
+            btn.classList.add('border-blue-500', 'text-blue-500');
             
             // Show/hide content
             document.querySelectorAll('.tab-content').forEach(content => {
