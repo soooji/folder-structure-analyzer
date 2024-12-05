@@ -88,90 +88,44 @@ function analyzeSiblingDirectories(parentDir, options) {
 function generateMainDashboard(baseDir, reports, parentDirName) {
   const template = `
     <!DOCTYPE html>
-    <html>
+    <html class="dark">
     <head>
       <title>Import Analysis Dashboard - ${parentDirName}</title>
-      <style>
-        body {
-          margin: 0;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          display: flex;
-          height: 100vh;
-        }
-        .sidebar {
-          width: 300px;
-          background: #f5f5f5;
-          padding: 1rem;
-          border-right: 1px solid #ddd;
-          overflow-y: auto;
-        }
-        .main-content {
-          flex: 1;
-          padding: 0;
-          overflow: hidden;
-        }
-        .directory-item {
-          padding: 0.5rem;
-          margin: 0.25rem 0;
-          background: white;
-          border-radius: 4px;
-          cursor: pointer;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border: 1px solid #ddd;
-        }
-        .directory-item:hover {
-          background: #f0f0f0;
-        }
-        .directory-item.active {
-          background: #e3f2fd;
-          border-color: #2196f3;
-        }
-        .import-count {
-          background: #ff5252;
-          color: white;
-          padding: 0.2rem 0.5rem;
-          border-radius: 12px;
-          font-size: 0.8rem;
-        }
-        h1 {
-          margin: 0 0 1rem 0;
-          font-size: 1.5rem;
-          color: #2c3e50;
-        }
-        iframe {
-          width: 100%;
-          height: 100%;
-          border: none;
-        }
-        .no-report {
-          padding: 2rem;
-          text-align: center;
-          color: #666;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="sidebar">
-        <h1>${parentDirName} Analysis</h1>
-        ${reports
-          .map(
-            (report) => `
-          <div class="directory-item" onclick="showReport('${report.reportPath}')">
-            <span>${report.directory}</span>
-            ${
-              report.importCount > 0
-                ? `<span class="import-count">${report.importCount}</span>`
-                : ""
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+        tailwind.config = {
+          darkMode: 'class',
+          theme: {
+            extend: {
+              colors: {
+                'dark-nav': '#0A0A0A',
+                'dark-bg': '#111111'
+              }
             }
-          </div>
-        `,
-          )
-          .join("")}
-      </div>
-      <div class="main-content">
-        <iframe id="reportFrame" src="about:blank"></iframe>
+          }
+        }
+      </script>
+    </head>
+    <body class="bg-dark-bg text-gray-200">
+      <div class="flex h-screen">
+        <div class="w-80 bg-dark-nav p-6 border-r border-gray-800 overflow-y-auto">
+          <h1 class="text-2xl font-bold mb-6 text-white">${parentDirName} Analysis</h1>
+          ${reports.map(report => `
+            <div class="directory-item mb-2 group" onclick="showReport('${report.reportPath}')">
+              <div class="flex items-center justify-between p-3 rounded-lg bg-gray-900 hover:bg-gray-800 cursor-pointer transition-colors">
+                <span class="text-gray-200">${report.directory}</span>
+                ${report.importCount > 0 ? 
+                  `<span class="px-2 py-1 text-xs rounded-full bg-red-500 text-white">
+                    ${report.importCount}
+                  </span>` : 
+                  ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="flex-1">
+          <iframe id="reportFrame" class="w-full h-full" src="about:blank"></iframe>
+        </div>
       </div>
 
       <script>
@@ -194,7 +148,7 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
     </html>
   `;
 
-  fs.writeFileSync(path.join(baseDir, "index.html"), template);
+  fs.writeFileSync(path.join(baseDir, 'index.html'), template);
 }
 
 program
