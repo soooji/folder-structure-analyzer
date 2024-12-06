@@ -1,210 +1,75 @@
 # Import Checker CLI
 
-A command-line tool to analyze cross-directory imports in React/Next.js projects, helping maintain clean architecture and prevent unwanted dependencies between features.
+A command-line tool to analyze and maintain clean architecture in React/Next.js projects by checking cross-directory imports and component organization.
 
-## Features
+## Quick Overview
+
+### Key Features
 
 - Analyze imports between sibling directories
+- Generate detailed HTML and JSON reports
 - Support for JavaScript, TypeScript, JSX, and TSX files
-- Generate detailed HTML reports with interactive visualizations
-- Create JSON reports for further processing
-- Analyze single directories or all sibling directories
-- Interactive dashboard for multi-directory analysis
-- VS Code integration for quick file navigation
+- VS Code integration
+- Enforce component directory structure
 
-## Installation
-
-### Global Installation
+### Installation
 
 ```bash
+# Global installation
 npm install -g import-checker
-```
 
-### Local Project Installation
-
-```bash
+# Local project installation
 npm install --save-dev import-checker
 ```
 
-## Usage
+## Core Commands
 
-### Single Directory Analysis
-
-Analyze imports for a single directory:
+### 1. Single Directory Import Analysis
 
 ```bash
+# Basic usage
 import-checker check <directory>
-```
 
-Example:
-
-```bash
+# Example
 import-checker check src/features/user
+
+# Options
+-v, --verbose     Show detailed output
+--no-html         Skip HTML report generation
 ```
 
-Options:
-
-- `-v, --verbose`: Show detailed output
-- `--no-html`: Skip HTML report generation
-
-### Sibling Directories Analysis
-
-Analyze imports for all sibling directories within a parent directory:
+### 2. Sibling Directories Analysis
 
 ```bash
+# Analyze all sibling directories
 import-checker check-siblings <parent-directory>
+
+# Example
+import-checker check-siblings src/pages
+
+# Options
+-v, --verbose     Show detailed output
+--no-html         Skip HTML report generation
 ```
 
-Example:
+### 3. Structure Checker
 
 ```bash
-import-checker check-siblings src/pages
+# Check component directory structure
+import-checker check-structure <directory>
+
+# Example
+import-checker check-structure src/features
+
+# Options
+-s, --skip <directories>   Skip specific directories
+-v, --verbose              Show detailed output
+--no-html                  Skip HTML report generation
 ```
-
-Options:
-
-- `-v, --verbose`: Show detailed output
-- `--no-html`: Skip HTML report generation
-
-## Output
-
-### Single Directory Analysis
-
-Generates:
-
-- `import-analysis-report.json`: Detailed JSON report of all imports
-- `import-analysis-report.html`: Interactive HTML visualization (unless `--no-html` is specified)
-
-### Sibling Directories Analysis
-
-Creates a directory named `import-analysis-{parentDir}` containing:
-
-- `index.html`: Main dashboard showing all analyzed directories
-- Individual directory reports in separate folders
-
-## Report Features
-
-### HTML Reports
-
-- Interactive tree view of directory structure
-- Import counts for files and directories
-- Detailed modal view with:
-  - Source file path
-  - Import path
-  - Imported items (functions, components, etc.)
-  - Direct links to open files in VS Code
-- Collapsible directory structure
-- Import count badges
-
-### JSON Reports
-
-Structured data including:
-
-- Target directory information
-- Analysis timestamp
-- Total import count
-- Detailed import information
-
-## Use Cases
-
-1. **Feature Isolation**: Ensure features remain independent
-2. **Code Organization**: Identify when shared code should be moved
-3. **Dependency Management**: Track dependencies between application parts
-4. **Architectural Compliance**: Monitor cross-directory imports
-
-## Diagrams
-
-<img src="./assets/ChordDiagram.png" width="400" alt="Import Diagram">
-<img src="./assets/ForceDirectedGraph.png" width="400" alt="Force Directed Graph">
-
-## Example Directory Structure
-
-```
-src/
-├── features/
-│   ├── user/
-│   │   ├── UserProfile.tsx
-│   │   └── UserUtils.ts
-│   └── auth/
-│       ├── Login.tsx
-│       └── AuthContext.ts
-└── pages/
-    ├── dashboard/
-    │   └── index.tsx
-    └── settings/
-        └── index.tsx
-```
-
-## Alias Configuration
-
-If your project uses import aliases (configured in tsconfig.json or jsconfig.json), you'll need to configure these aliases for the import-checker to properly analyze cross-directory imports.
-
-Create a `.importcheckerrc.json` file in your project root:
-
-```json
-{
-  "baseUrl": ".",
-  "aliases": {
-    "@/*": "src/*",
-    "@components/*": "src/components/*",
-    "@pages/*": "src/pages/*",
-    "@features/*": "src/features/*",
-    "@utils/*": "src/utils/*"
-  }
-}
-```
-
-### Configuration Options
-
-- `baseUrl`: The base directory for resolving aliases (default: ".")
-- `aliases`: An object mapping alias patterns to their actual paths
-  - Keys should match your import aliases (with optional \* for wildcards)
-  - Values should be the actual paths (with \* to match the wildcard if used in the key)
-
-### Example Configurations
-
-1. Next.js style configuration:
-
-```json
-{
-  "baseUrl": ".",
-  "aliases": {
-    "@/*": "src/*"
-  }
-}
-```
-
-2. Custom paths configuration:
-
-```json
-{
-  "baseUrl": ".",
-  "aliases": {
-    "~/*": "src/*",
-    "lib/*": "src/lib/*",
-    "components": "src/components",
-    "@utils": "src/utils"
-  }
-}
-```
-
-Note: The alias patterns support both directory wildcards (with _) and exact matches (without _).
-
-## Contributing
-
-Contributions are welcome! Please submit a Pull Request.
-
-## License
-
-MIT
-
-## Support
-
-For issues and feature requests, please use the GitHub issue tracker.
 
 ## Configuration
 
-Create a `.importcheckerrc.json` file in your project root to configure import-checker:
+Create a `.importcheckerrc.json` in your project root:
 
 ```json
 {
@@ -219,48 +84,45 @@ Create a `.importcheckerrc.json` file in your project root to configure import-c
 
 ### Configuration Options
 
-- `baseUrl`: The base directory for resolving aliases (default: ".")
-- `outputDir`: Directory where analysis reports will be saved (default: "./import-analysis")
-- `aliases`: An object mapping alias patterns to their actual paths
+- `baseUrl`: Base directory for resolving aliases (default: ".")
+- `outputDir`: Directory for saving analysis reports
+- `aliases`: Map import aliases to actual paths
 
-## Command Options
+## Reports
 
-Both `check` and `check-siblings` commands support the following options:
+### HTML Reports
 
-- `-v, --verbose`: Show detailed output
-- `--no-html`: Skip HTML report generation
-- `-o, --output <path>`: Specify output directory for reports
+- Interactive tree view
+- Import counts
+- Detailed file information
+- VS Code file links
 
-Example:
+### JSON Reports
 
-```bash
-# Use custom output directory
-import-checker check src/features/user -o ./custom-analysis
+- Detailed import analysis
+- Timestamp
+- Total import statistics
 
-# Default output directory (./import-analysis)
-import-checker check-siblings src/pages
-```
+## Use Cases
 
-## Output Structure
+- Feature isolation
+- Code organization
+- Dependency management
+- Architectural compliance
 
-Reports are organized in the following structure:
+## Visualization
 
-```
-import-analysis/
-├── import-analysis-features/
-│   ├── index.html
-│   ├── user/
-│   │   ├── import-analysis.html
-│   │   └── import-analysis.json
-│   └── auth/
-│       ├── import-analysis.html
-│       └── import-analysis.json
-└── import-analysis-pages/
-    ├── index.html
-    ├── dashboard/
-    │   ├── import-analysis.html
-    │   └── import-analysis.json
-    └── settings/
-        ├── import-analysis.html
-        └── import-analysis.json
-```
+<img src="./assets/ChordDiagram.png" width="600" alt="Import Diagram" />
+<img src="./assets/ForceDirectedGraph.png" width="600" alt="Force Directed Graph" />
+
+## Contributing
+
+Contributions welcome! Please submit a Pull Request.
+
+## License
+
+MIT
+
+## Support
+
+Report issues on the GitHub issue tracker.

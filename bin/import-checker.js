@@ -6,6 +6,7 @@ const chalk = require("chalk");
 const path = require("path");
 const fs = require("fs-extra");
 const { analyzeImports } = require("../lib/import-analyzer");
+const { analyzeStructure } = require("../lib/structure-analyzer");
 
 function analyzeSiblingDirectories(parentDir, options) {
   if (!fs.existsSync(parentDir)) {
@@ -1085,6 +1086,64 @@ program
       ...options,
       outputDir,
     });
+  });
+
+// Add this new command after existing commands
+program
+  .command("check-structure")
+  .description("Analyze directory structure for component organization")
+  .argument("<directory>", "Target directory to analyze")
+  .option(
+    "-s, --skip <directories>",
+    "Comma-separated list of directory names to skip",
+    "components",
+  )
+  .option("-v, --verbose", "Show detailed output")
+  .option("--no-html", "Skip HTML report generation")
+  .option("-o, --output <path>", "Output directory path")
+  .action((directory, options) => {
+    const targetDir = path.resolve(process.cwd(), directory);
+    console.log(chalk.blue(`Analyzing structure in: ${targetDir}`));
+
+    const skipDirectories = options.skip.split(",").map((d) => d.trim());
+
+    try {
+      const baseOutputDir = options.output || "structure-analysis";
+      const outputDir = path.resolve(process.cwd(), baseOutputDir);
+
+      const result = analyzeStructure(targetDir, {
+        skipDirectories,
+        generateReports: true,
+        generateHtml: options.html,
+        outputDir,
+      });
+
+      if (result.violations.length === 0) {
+        console.log(chalk.green("\n✓ No structure violations found!"));
+        return;
+      }
+
+      console.log(
+        chalk.yellow(
+          `\nFound ${result.violations.length} structure violations:`,
+        ),
+      );
+      result.violations.forEach((violation) => {
+        console.log(chalk.red(`\n• ${violation.directory}:`));
+        console.log(chalk.gray(`  ${violation.message}`));
+      });
+
+      if (options.html) {
+        console.log(
+          chalk.blue(
+            `\nGenerated HTML report: ${path.join(outputDir, "structure-analysis.html")}`,
+          ),
+        );
+      }
+    } catch (error) {
+      console.error(chalk.red(`Error analyzing structure: ${error.message}`));
+      process.exit(1);
+    }
   });
 
 program.parse();
