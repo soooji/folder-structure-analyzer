@@ -112,6 +112,11 @@ Structured data including:
 3. **Dependency Management**: Track dependencies between application parts
 4. **Architectural Compliance**: Monitor cross-directory imports
 
+## Diagrams
+
+<img src="./assets/ChordDiagram.png" width="400" alt="Import Diagram">
+<img src="./assets/ForceDirectedGraph.png" width="400" alt="Force Directed Graph">
+
 ## Example Directory Structure
 
 ```
@@ -227,6 +232,7 @@ Both `check` and `check-siblings` commands support the following options:
 - `-o, --output <path>`: Specify output directory for reports
 
 Example:
+
 ```bash
 # Use custom output directory
 import-checker check src/features/user -o ./custom-analysis
