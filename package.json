@@ -1,6 +1,6 @@
 {
   "name": "import-checker",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A command-line tool to analyze cross-directory imports in React/Next.js projects",
   "main": "lib/import-analyzer.js",
   "bin": {
