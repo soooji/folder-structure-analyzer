@@ -86,7 +86,61 @@ function analyzeSiblingDirectories(parentDir, options) {
   }
 }
 
+function prepareChordData(reports, baseDir) {
+  // Create nodes array and index map
+  const nodes = reports.map((r) => r.directory);
+  const matrix = Array(nodes.length)
+    .fill(0)
+    .map(() => Array(nodes.length).fill(0));
+
+  // Fill matrix with import counts
+  reports.forEach((report) => {
+    const jsonPath = path.join(
+      baseDir,
+      report.directory,
+      "import-analysis.json",
+    );
+    try {
+      const reportData = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+      const sourceIndex = nodes.indexOf(report.directory);
+
+      // eslint-disable-next-line no-inner-declarations
+      function processStructure(structure) {
+        Object.values(structure).forEach((node) => {
+          if (node.type === "file" && node.imports) {
+            node.imports.forEach((imp) => {
+              const targetIndex = nodes.indexOf(imp.siblingDirectory);
+              if (targetIndex !== -1) {
+                // eslint-disable-next-line no-plusplus
+                matrix[sourceIndex][targetIndex]++;
+              }
+            });
+          }
+          if (node.type === "directory" && node.children) {
+            processStructure(node.children);
+          }
+        });
+      }
+
+      processStructure(reportData.structure);
+    } catch (error) {
+      console.error(
+        `Error processing JSON for ${report.directory}:`,
+        error.message,
+      );
+    }
+  });
+
+  return {
+    nodes,
+    matrix,
+  };
+}
+
 function generateMainDashboard(baseDir, reports, parentDirName) {
+  // Prepare chord data
+  const chordData = prepareChordData(reports, baseDir);
+
   const template = `
     <!DOCTYPE html>
     <html class="dark">
@@ -94,6 +148,7 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
       <title>Import Analysis Dashboard - ${parentDirName}</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <script src="https://d3js.org/d3.v7.min.js"></script>
+      <script src="https://d3js.org/d3-chord/3"></script>
       <script>
         tailwind.config = {
           darkMode: 'class',
@@ -158,6 +213,24 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
 
           <!-- Graph Legend -->
           <div id="graphView" class="tab-content hidden">
+            <div class="bg-gray-900 p-4 rounded-lg mb-4">
+              <h3 class="text-sm font-medium mb-4">Visualization Type</h3>
+              <div class="space-y-2">
+                <button class="chart-type-btn w-full text-left px-3 py-2 rounded hover:bg-gray-800 transition-colors flex items-center text-blue-500 bg-gray-800" data-type="force">
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Force-Directed Graph
+                </button>
+                <button class="chart-type-btn w-full text-left px-3 py-2 rounded hover:bg-gray-800 transition-colors flex items-center" data-type="chord">
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" stroke-width="2"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8M8 12h8"/>
+                  </svg>
+                  Chord Diagram
+                </button>
+              </div>
+            </div>
             <div class="bg-gray-900 p-4 rounded-lg">
               <h3 class="text-sm font-medium mb-2">Legend</h3>
               <div class="flex items-center mb-2">
@@ -165,9 +238,9 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
                 <span class="text-sm">Directory</span>
               </div>
               <div class="text-xs text-gray-400 mt-2">
-                • Drag nodes to rearrange<br>
-                • Click connections to see imports<br>
-                • Click directory to view details
+                • Drag to pan the view<br>
+                • Scroll to zoom in/out<br>
+                • Click connections to see imports
               </div>
             </div>
           </div>
@@ -182,8 +255,116 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
 
       <script>
         const graphData = ${JSON.stringify(prepareGraphData(reports, baseDir))};
+        const chordData = ${JSON.stringify(chordData)};
+        
+        function initializeChordDiagram() {
+          const width = document.getElementById('graphContainer').clientWidth;
+          const height = document.getElementById('graphContainer').clientHeight;
+          const radius = Math.min(width, height) * 0.4;
 
-        // Tab switching
+          // Clear previous content
+          d3.select('#graphContainer').html('');
+
+          const svg = d3.select('#graphContainer')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .append('g')
+            .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')');
+
+          // Create chord layout
+          const chord = d3.chord()
+            .padAngle(0.05);
+
+          const chords = chord(chordData.matrix);
+
+          // Add groups (arcs)
+          const group = svg.append('g')
+            .selectAll('g')
+            .data(chords.groups)
+            .join('g');
+
+          group.append('path')
+            .attr('fill', '#60A5FA')
+            .attr('stroke', '#1F2937')
+            .attr('d', d3.arc()
+              .innerRadius(radius * 0.8)
+              .outerRadius(radius)
+            );
+
+          // Add labels
+          group.append('text')
+            .each(d => { d.angle = (d.startAngle + d.endAngle) / 2; })
+            .attr('dy', '.35em')
+            .attr('transform', d => 
+              'translate(' + 
+              Math.cos(d.angle - Math.PI / 2) * (radius + 10) + ',' +
+              Math.sin(d.angle - Math.PI / 2) * (radius + 10) + ') ' +
+              'rotate(' + (d.angle * 180 / Math.PI - 90) + ')' +
+              (d.angle > Math.PI ? ' rotate(180)' : '')
+            )
+            .attr('text-anchor', d => d.angle > Math.PI ? 'end' : 'start')
+            .text(d => chordData.nodes[d.index])
+            .attr('fill', '#D1D5DB')
+            .attr('font-size', '12px');
+
+          // Add chords
+          svg.append('g')
+            .attr('fill-opacity', 0.5)
+            .selectAll('path')
+            .data(chords)
+            .join('path')
+            .attr('d', d3.ribbon().radius(radius * 0.8))
+            .attr('fill', '#4B5563')
+            .attr('stroke', '#1F2937')
+            .attr('class', 'cursor-pointer')
+            .on('mouseover', (event, d) => {
+              d3.select(event.currentTarget)
+                .attr('fill-opacity', 0.8)
+                .attr('fill', '#60A5FA');
+            })
+            .on('mouseout', (event, d) => {
+              d3.select(event.currentTarget)
+                .attr('fill-opacity', 0.5)
+                .attr('fill', '#4B5563');
+            })
+            .on('click', (event, d) => {
+              const sourceId = chordData.nodes[d.source.index];
+              const targetId = chordData.nodes[d.target.index];
+              const linkData = graphData.links.find(l => 
+                l.source === sourceId && l.target === targetId
+              );
+              if (linkData) {
+                showLinkDetails(event, linkData);
+              }
+            });
+        }
+
+        // Chart type switching
+        let currentChart = 'force';
+        let currentChartInstance = null;
+
+        document.querySelectorAll('.chart-type-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const chartType = btn.dataset.type;
+            if (chartType === currentChart) return;
+
+            // Update button states
+            document.querySelectorAll('.chart-type-btn').forEach(b => {
+              b.classList.remove('text-blue-500', 'bg-gray-800');
+            });
+            btn.classList.add('text-blue-500', 'bg-gray-800');
+
+            // Clear previous chart
+            d3.select('#graphContainer').selectAll('*').remove();
+            
+            // Initialize new chart
+            currentChart = chartType;
+            initializeChart(chartType);
+          });
+        });
+
+        // Update tab switching logic
         document.querySelectorAll('.tab-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -203,20 +384,149 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
             });
             document.getElementById(tabId + 'View').classList.remove('hidden');
 
-            // Show/hide main content
+            // Show/hide main content and initialize/reinitialize graph if needed
             if (tabId === 'graph') {
               document.getElementById('reportFrame').classList.add('hidden');
               document.getElementById('graphContainer').classList.remove('hidden');
-              if (!window.graphInitialized) {
-                initializeGraph();
-                window.graphInitialized = true;
-              }
+              // Clear and reinitialize current chart
+              d3.select('#graphContainer').selectAll('*').remove();
+              initializeChart(currentChart);
             } else {
               document.getElementById('reportFrame').classList.remove('hidden');
               document.getElementById('graphContainer').classList.add('hidden');
             }
           });
         });
+
+        function initializeChart(type) {
+          switch(type) {
+            case 'force':
+              initializeForceGraph();
+              break;
+            case 'chord':
+              initializeChordDiagram();
+              break;
+          }
+        }
+
+        // Add drag function
+        function drag(simulation) {
+          function dragstarted(event) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+          }
+          
+          function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+          }
+          
+          function dragended(event) {
+            if (!event.active) simulation.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+          }
+          
+          return d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended);
+        }
+
+        // Initialize Force-Directed Graph
+        function initializeForceGraph() {
+          const width = document.getElementById('graphContainer').clientWidth;
+          const height = document.getElementById('graphContainer').clientHeight;
+
+          const svg = d3.select('#graphContainer')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+          const g = svg.append('g');
+
+          // Add zoom behavior
+          const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on('zoom', (event) => {
+              g.attr('transform', event.transform);
+            });
+
+          svg.call(zoom);
+
+          const simulation = d3.forceSimulation(graphData.nodes)
+            .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(100))
+            .force('charge', d3.forceManyBody().strength(-300))
+            .force('center', d3.forceCenter(width / 2, height / 2));
+
+          // Add arrow marker
+          g.append('defs').selectAll('marker')
+            .data(['end'])
+            .join('marker')
+            .attr('id', 'arrow')
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 15)
+            .attr('refY', 0)
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('fill', '#4B5563')
+            .attr('d', 'M0,-5L10,0L0,5');
+
+          const link = g.append('g')
+            .selectAll('line')
+            .data(graphData.links)
+            .join('line')
+            .attr('stroke', '#4B5563')
+            .attr('stroke-width', 2)
+            .attr('marker-end', 'url(#arrow)')
+            .attr('class', 'cursor-pointer')
+            .on('click', (event, d) => {
+              // Highlight clicked connection
+              d3.selectAll('line').attr('stroke', '#4B5563');
+              d3.select(event.currentTarget)
+                .attr('stroke', '#60A5FA')
+                .attr('stroke-width', 3);
+              
+              showLinkDetails(event, d);
+            });
+
+          const node = g.append('g')
+            .selectAll('circle')
+            .data(graphData.nodes)
+            .join('circle')
+            .attr('r', 5)
+            .attr('fill', d => d.type === 'file' ? '#60A5FA' : '#34D399')
+            .call(drag(simulation));
+
+          const label = g.append('g')
+            .selectAll('text')
+            .data(graphData.nodes)
+            .join('text')
+            .text(d => d.name)
+            .attr('font-size', '12px')
+            .attr('fill', '#D1D5DB')
+            .attr('dx', 8)
+            .attr('dy', 4);
+
+          simulation.on('tick', () => {
+            link
+              .attr('x1', d => d.source.x)
+              .attr('y1', d => d.source.y)
+              .attr('x2', d => d.target.x)
+              .attr('y2', d => d.target.y);
+
+            node
+              .attr('cx', d => d.x)
+              .attr('cy', d => d.y);
+
+            label
+              .attr('x', d => d.x)
+              .attr('y', d => d.y);
+          });
+        }
 
         function showReport(path) {
           document.getElementById('reportFrame').innerHTML = \`<iframe src="\${path}" class="w-full h-full border-0"></iframe>\`;
@@ -411,57 +721,60 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
           }
 
           function showLinkDetails(event, d) {
-            event.stopPropagation();
             const modal = document.getElementById('importModal');
             const modalContent = document.getElementById('modalContent');
             
-            modalContent.innerHTML = \`
-              <div class="bg-gray-900 p-4 rounded">
-                <div class="mb-4">
-                  <div class="text-lg font-medium text-blue-400 mb-1">Directory Relationship</div>
-                  <div class="bg-gray-800 p-3 rounded">
-                    <div class="mb-2">
-                      <strong class="text-blue-400">From:</strong> \${d.source.name}
-                    </div>
-                    <div>
-                      <strong class="text-blue-400">To:</strong> \${d.target.name}
-                    </div>
+            modalContent.innerHTML = d.imports.map(imp => {
+              const fileUrl = \`vscode://file/\${imp.absolutePath}\`;
+              return \`
+                <div class="border-l-4 border-red-500 bg-gray-900 rounded-r p-4 mb-4">
+                  <div class="import-path">
+                    <div class="text-white font-medium mb-2">\${d.source.id}</div>
                   </div>
-                </div>
-
-                <div class="mb-4">
-                  <div class="text-lg font-medium text-blue-400 mb-1">Affected Files</div>
-                  <div class="bg-gray-800 p-3 rounded space-y-4">
-                    \${d.imports.map(imp => {
-                      const fileUrl = \`vscode://file/\${imp.absolutePath}\`;
-                      return \`
-                        <div class="border-l-2 border-gray-700 pl-3">
-                          <div class="text-sm text-gray-300">
-                            <div class="font-medium text-white mb-1">\${imp.absolutePath.split('/').pop()}</div>
-                            <div class="mb-1">
-                              <span class="text-gray-400">Importing from:</span> \${imp.importPath}
-                            </div>
-                            <div class="mb-2">
-                              <span class="text-gray-400">Imported items:</span>
-                              <ul class="list-disc pl-4 mt-1 space-y-1">
-                                \${imp.importedItems.map(item => \`<li>\${item}</li>\`).join('')}
-                              </ul>
-                            </div>
-                            <button class="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors" 
-                              onclick="window.location.href='\${fileUrl}'">
-                              Open in Editor
-                            </button>
-                          </div>
-                        </div>
-                      \`;
-                    }).join('')}
+                  <div class="bg-gray-800 rounded p-3 space-y-2 text-sm">
+                    <div class="text-gray-300"><span class="text-gray-400">Importing from:</span> \${imp.importPath}</div>
+                    <div class="text-gray-300"><span class="text-gray-400">Sibling Directory:</span> \${imp.siblingDirectory}</div>
+                    \${imp.importedItems.length > 0 ? \`
+                    <div class="mt-3">
+                      <div class="text-gray-400 mb-1">Imported Items:</div>
+                      <ul class="list-disc pl-4 space-y-1 text-gray-300">
+                        \${imp.importedItems.map(item => \`<li>\${item}</li>\`).join('')}
+                      </ul>
+                    </div>
+                    \` : ''}
                   </div>
+                  <button class="mt-3 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors" onclick="window.location.href='\${fileUrl}'">
+                    Open in Editor
+                  </button>
                 </div>
-              </div>
-            \`;
+              \`;
+            }).join('');
             
             modal.style.display = 'block';
             document.body.style.overflow = 'hidden';
+
+            // Add modal close handlers
+            const closeBtn = modal.querySelector('.close');
+            closeBtn.onclick = () => {
+              modal.style.display = 'none';
+              document.body.style.overflow = 'auto';
+              // Reset connection color when modal is closed
+              d3.selectAll('line')
+                .attr('stroke', '#4B5563')
+                .attr('stroke-width', 2);
+            };
+
+            // Close on outside click
+            modal.onclick = (e) => {
+              if (e.target === modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+                // Reset connection color when modal is closed
+                d3.selectAll('line')
+                  .attr('stroke', '#4B5563')
+                  .attr('stroke-width', 2);
+              }
+            };
           }
 
           // Update the drag function to work with zoom
@@ -511,7 +824,84 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
         if (firstReport) {
           showReport(firstReport.reportPath);
         }
+
+        // Initialize default chart when graph view is first shown
+        if (document.getElementById('graphView').classList.contains('hidden')) {
+          initializeChart('force');
+        }
+
+        // Link interaction handlers
+        function showLinkDetails(event, d) {
+          const modal = document.getElementById('importModal');
+          const modalContent = document.getElementById('modalContent');
+          
+          modalContent.innerHTML = d.imports.map(imp => {
+            const fileUrl = \`vscode://file/\${imp.absolutePath}\`;
+            return \`
+              <div class="border-l-4 border-red-500 bg-gray-900 rounded-r p-4 mb-4">
+                <div class="import-path">
+                  <div class="text-white font-medium mb-2">\${d.source.id}</div>
+                </div>
+                <div class="bg-gray-800 rounded p-3 space-y-2 text-sm">
+                  <div class="text-gray-300"><span class="text-gray-400">Importing from:</span> \${imp.importPath}</div>
+                  <div class="text-gray-300"><span class="text-gray-400">Sibling Directory:</span> \${imp.siblingDirectory}</div>
+                  \${imp.importedItems.length > 0 ? \`
+                  <div class="mt-3">
+                    <div class="text-gray-400 mb-1">Imported Items:</div>
+                    <ul class="list-disc pl-4 space-y-1 text-gray-300">
+                      \${imp.importedItems.map(item => \`<li>\${item}</li>\`).join('')}
+                    </ul>
+                  </div>
+                  \` : ''}
+                </div>
+                <button class="mt-3 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors" onclick="window.location.href='\${fileUrl}'">
+                  Open in Editor
+                </button>
+              </div>
+            \`;
+          }).join('');
+          
+          modal.style.display = 'block';
+          document.body.style.overflow = 'hidden';
+
+          // Add modal close handlers
+          const closeBtn = modal.querySelector('.close');
+          closeBtn.onclick = () => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            // Reset connection color when modal is closed
+            d3.selectAll('line')
+              .attr('stroke', '#4B5563')
+              .attr('stroke-width', 2);
+          };
+
+          // Close on outside click
+          modal.onclick = (e) => {
+            if (e.target === modal) {
+              modal.style.display = 'none';
+              document.body.style.overflow = 'auto';
+              // Reset connection color when modal is closed
+              d3.selectAll('line')
+                .attr('stroke', '#4B5563')
+                .attr('stroke-width', 2);
+            }
+          };
+        }
+
+        function hideLinkDetails() {
+          // Optionally hide the modal when mouse leaves the link
+          // document.getElementById('importModal').style.display = 'none';
+        }
       </script>
+
+      <!-- Import Details Modal -->
+      <div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="bg-dark-nav rounded-lg max-w-2xl mx-auto mt-10 p-6 relative max-h-[calc(100vh-50px)] overflow-hidden flex flex-col">
+          <button class="close absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
+          <h2 class="text-xl font-bold mb-4">Import Details</h2>
+          <div id="modalContent" class="overflow-y-auto"></div>
+        </div>
+      </div>
     </body>
     </html>
   `;
@@ -520,6 +910,7 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
 }
 
 function prepareGraphData(reports, baseDir) {
+  // Create nodes for each directory
   const nodes = reports.map((report) => ({
     id: report.directory,
     name: report.directory,
@@ -543,11 +934,32 @@ function prepareGraphData(reports, baseDir) {
         Object.values(structure).forEach((node) => {
           if (node.type === "file" && node.imports) {
             node.imports.forEach((imp) => {
-              links.push({
-                source: report.directory,
-                target: imp.siblingDirectory,
-                imports: [imp],
-              });
+              // Only add the link if both source and target are in our nodes list
+              const sourceExists = nodes.some((n) => n.id === report.directory);
+              const targetExists = nodes.some(
+                (n) => n.id === imp.siblingDirectory,
+              );
+
+              if (sourceExists && targetExists) {
+                // Check if this link already exists
+                const existingLink = links.find(
+                  (l) =>
+                    l.source === report.directory &&
+                    l.target === imp.siblingDirectory,
+                );
+
+                if (existingLink) {
+                  // Merge imports into existing link
+                  existingLink.imports.push(imp);
+                } else {
+                  // Create new link
+                  links.push({
+                    source: report.directory,
+                    target: imp.siblingDirectory,
+                    imports: [imp],
+                  });
+                }
+              }
             });
           }
           if (node.type === "directory" && node.children) {
@@ -564,6 +976,9 @@ function prepareGraphData(reports, baseDir) {
       );
     }
   });
+
+  // Debug log to check the data
+  console.log("Graph Data:", { nodes, links });
 
   return { nodes, links };
 }
