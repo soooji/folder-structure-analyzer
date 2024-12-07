@@ -1,18 +1,16 @@
 # Import Checker CLI
 
-A command-line tool to analyze and maintain clean architecture in React/Next.js projects by checking cross-directory imports and component organization.
+Maintain clean architecture in React/Next.js projects by analyzing cross-directory imports and component organization.
 
-## Quick Overview
+## Features
 
-### Key Features
-
-- Analyze imports between sibling directories
-- Generate detailed HTML and JSON reports
-- Support for JavaScript, TypeScript, JSX, and TSX files
+- Analyze imports between directories
+- Generate HTML and JSON reports
+- Support for JavaScript, TypeScript, JSX, TSX
 - VS Code integration
 - Enforce component directory structure
 
-### Installation
+## Installation
 
 ```bash
 # Global installation
@@ -22,54 +20,58 @@ npm install -g import-checker
 npm install --save-dev import-checker
 ```
 
-## Core Commands
+## Commands
 
-### 1. Single Directory Import Analysis
+### 1. Single Directory Analysis
 
 ```bash
-# Basic usage
 import-checker check <directory>
-
-# Example
-import-checker check src/features/user
+# Example: import-checker check src/features/user
 
 # Options
--v, --verbose     Show detailed output
---no-html         Skip HTML report generation
+-v, --verbose     Detailed output
+--no-html         Skip HTML report
 ```
 
 ### 2. Sibling Directories Analysis
 
 ```bash
-# Analyze all sibling directories
 import-checker check-siblings <parent-directory>
-
-# Example
-import-checker check-siblings src/pages
+# Example: import-checker check-siblings src/pages
 
 # Options
--v, --verbose     Show detailed output
---no-html         Skip HTML report generation
+-v, --verbose     Detailed output
+--no-html         Skip HTML report
 ```
 
 ### 3. Structure Checker
 
 ```bash
-# Check component directory structure
 import-checker check-structure <directory>
-
-# Example
-import-checker check-structure src/features
+# Example: import-checker check-structure src/features
 
 # Options
 -s, --skip <directories>   Skip specific directories
--v, --verbose              Show detailed output
---no-html                  Skip HTML report generation
+-v, --verbose              Detailed output
+--no-html                  Skip HTML report
+```
+
+### 4. Combined Analysis
+
+```bash
+import-checker check-all <directory>
+# Example: import-checker check-all src/features
+
+# Options
+-s, --skip <directories>   Skip directories
+-v, --verbose              Detailed output
+--no-html                  Skip HTML report
+-o, --output <path>        Custom output path
 ```
 
 ## Configuration
 
-Create a `.importcheckerrc.json` in your project root:
+Create `.importcheckerrc.json`:
 
 ```json
 {
@@ -82,26 +84,12 @@ Create a `.importcheckerrc.json` in your project root:
 }
 ```
 
-### Configuration Options
-
-- `baseUrl`: Base directory for resolving aliases (default: ".")
-- `outputDir`: Directory for saving analysis reports
-- `aliases`: Map import aliases to actual paths
-
 ## Reports
 
-### HTML Reports
-
-- Interactive tree view
-- Import counts
-- Detailed file information
+- Interactive HTML reports
+- Detailed JSON analysis
+- Import counts and file information
 - VS Code file links
-
-### JSON Reports
-
-- Detailed import analysis
-- Timestamp
-- Total import statistics
 
 ## Use Cases
 
@@ -123,6 +111,8 @@ Contributions welcome! Please submit a Pull Request.
 
 MIT
 
-## Support
+## Contributing & Support
 
-Report issues on the GitHub issue tracker.
+- Contributions welcome! Submit a Pull Request
+- Report issues on GitHub
+- License: MIT

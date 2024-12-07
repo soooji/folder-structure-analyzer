@@ -78,7 +78,9 @@ function analyzeSiblingDirectories(parentDir, options) {
 
   // Generate main dashboard
   if (options.html) {
-    generateMainDashboard(reportsBaseDir, allReports, parentDirName);
+    generateMainDashboard(reportsBaseDir, allReports, parentDirName, {
+      hideHeader: options.hideHeader,
+    });
     console.log(
       chalk.blue(
         `\nGenerated main dashboard: ${path.join(reportsBaseDir, "index.html")}`,
@@ -138,10 +140,12 @@ function prepareChordData(reports, baseDir) {
   };
 }
 
-function generateMainDashboard(baseDir, reports, parentDirName) {
-  // Prepare chord data
-  const chordData = prepareChordData(reports, baseDir);
-
+function generateMainDashboard(
+  baseDir,
+  reports,
+  parentDirName,
+  options = { hideHeader: false },
+) {
   const template = `
     <!DOCTYPE html>
     <html class="dark">
@@ -150,6 +154,19 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
       <script src="https://cdn.tailwindcss.com"></script>
       <script src="https://d3js.org/d3.v7.min.js"></script>
       <script src="https://d3js.org/d3-chord/3"></script>
+      <style>
+        /* Resizer */
+        .resizer {
+          width: 4px;
+          cursor: col-resize;
+          background: #1F2937;
+          transition: background 0.2s;
+        }
+        
+        .resizer:hover, .resizer.dragging {
+          background: #3B82F6;
+        }
+      </style>
       <script>
         tailwind.config = {
           darkMode: 'class',
@@ -165,6 +182,9 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
       </script>
     </head>
     <body class="bg-dark-bg text-gray-200">
+      ${
+        !options.hideHeader
+          ? `
       <!-- Header -->
       <header class="bg-dark-nav border-b border-gray-800 px-6 py-4">
         <div class="flex justify-between items-center">
@@ -174,78 +194,88 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
           </a>
         </div>
       </header>
+      `
+          : ""
+      }
 
-      <div class="flex h-[calc(100vh-64px)]">
-        <!-- Tabs -->
-        <div class="w-80 bg-dark-nav p-6 border-r border-gray-800 overflow-y-auto">
-          <h1 class="text-2xl font-bold mb-6 text-white">${parentDirName} Analysis</h1>
-          <div class="mb-4 border-b border-gray-700">
-            <ul class="flex flex-wrap -mb-px text-sm font-medium">
-              <li class="mr-2">
-                <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-blue-500 text-blue-500 hover:text-gray-300 hover:border-gray-300 transition-colors" data-tab="list">Directory List</button>
-              </li>
-              <li class="mr-2">
-                <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-300 hover:border-gray-300 transition-colors" data-tab="graph">Graph View</button>
-              </li>
-            </ul>
-          </div>
-          
-          <!-- Directory List -->
-          <div id="listView" class="tab-content">
-            ${reports
-              .map(
-                (report) => `
-              <div class="directory-item mb-2 group" onclick="showReport('${report.reportPath}')">
-                <div class="flex items-center justify-between p-3 rounded-lg bg-gray-900 hover:bg-gray-800 cursor-pointer transition-colors">
-                  <span class="text-gray-200">${report.directory}</span>
-                  ${
-                    report.importCount > 0
-                      ? `<span class="px-2 py-1 text-xs rounded-full bg-red-500 text-white">
-                      ${report.importCount}
-                    </span>`
-                      : ""
-                  }
+      <div class="flex ${options.hideHeader ? "h-screen" : "h-[calc(100vh-64px)]"}">
+        <!-- Sidebar with Tabs -->
+        <div id="sidebar" class="w-80 min-w-[200px] max-w-[600px] bg-dark-nav border-r border-gray-800">
+          <div class="h-full overflow-y-auto">
+            <div class="p-6">
+              <h1 class="text-2xl font-bold mb-6 text-white">${parentDirName} Analysis</h1>
+              <div class="mb-4 border-b border-gray-700">
+                <ul class="flex flex-wrap -mb-px text-sm font-medium">
+                  <li class="mr-2">
+                    <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-blue-500 text-blue-500 hover:text-gray-300 hover:border-gray-300 transition-colors" data-tab="list">Directory List</button>
+                  </li>
+                  <li class="mr-2">
+                    <button class="tab-btn inline-block p-4 rounded-t-lg border-b-2 border-transparent hover:text-gray-300 hover:border-gray-300 transition-colors" data-tab="graph">Graph View</button>
+                  </li>
+                </ul>
+              </div>
+              
+              <!-- Directory List -->
+              <div id="listView" class="tab-content">
+                ${reports
+                  .map(
+                    (report) => `
+                  <div class="directory-item mb-2 group" onclick="showReport('${report.reportPath}')">
+                    <div class="flex items-center justify-between p-3 rounded-lg bg-gray-900 hover:bg-gray-800 cursor-pointer transition-colors">
+                      <span class="text-gray-200">${report.directory}</span>
+                      ${
+                        report.importCount > 0
+                          ? `<span class="px-2 py-1 text-xs rounded-full bg-red-500 text-white">
+                          ${report.importCount}
+                        </span>`
+                          : ""
+                      }
+                    </div>
+                  </div>
+                `,
+                  )
+                  .join("")}
+              </div>
+
+              <!-- Graph Legend -->
+              <div id="graphView" class="tab-content hidden">
+                <div class="bg-gray-900 p-4 rounded-lg mb-4">
+                  <h3 class="text-sm font-medium mb-4">Visualization Type</h3>
+                  <div class="space-y-2">
+                    <button class="chart-type-btn w-full text-left px-3 py-2 rounded hover:bg-gray-800 transition-colors flex items-center text-blue-500 bg-gray-800" data-type="force">
+                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Force-Directed Graph
+                    </button>
+                    <button class="chart-type-btn w-full text-left px-3 py-2 rounded hover:bg-gray-800 transition-colors flex items-center" data-type="chord">
+                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" stroke-width="2"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8M8 12h8"/>
+                      </svg>
+                      Chord Diagram
+                    </button>
+                  </div>
                 </div>
-              </div>
-            `,
-              )
-              .join("")}
-          </div>
-
-          <!-- Graph Legend -->
-          <div id="graphView" class="tab-content hidden">
-            <div class="bg-gray-900 p-4 rounded-lg mb-4">
-              <h3 class="text-sm font-medium mb-4">Visualization Type</h3>
-              <div class="space-y-2">
-                <button class="chart-type-btn w-full text-left px-3 py-2 rounded hover:bg-gray-800 transition-colors flex items-center text-blue-500 bg-gray-800" data-type="force">
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Force-Directed Graph
-                </button>
-                <button class="chart-type-btn w-full text-left px-3 py-2 rounded hover:bg-gray-800 transition-colors flex items-center" data-type="chord">
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="9" stroke-width="2"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8M8 12h8"/>
-                  </svg>
-                  Chord Diagram
-                </button>
-              </div>
-            </div>
-            <div class="bg-gray-900 p-4 rounded-lg">
-              <h3 class="text-sm font-medium mb-2">Legend</h3>
-              <div class="flex items-center mb-2">
-                <div class="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-                <span class="text-sm">Directory</span>
-              </div>
-              <div class="text-xs text-gray-400 mt-2">
-                • Drag to pan the view<br>
-                • Scroll to zoom in/out<br>
-                • Click connections to see imports
+                <div class="bg-gray-900 p-4 rounded-lg">
+                  <h3 class="text-sm font-medium mb-2">Legend</h3>
+                  <div class="flex items-center mb-2">
+                    <div class="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                    <span class="text-sm">Directory</span>
+                  </div>
+                  <div class="text-xs text-gray-400 mt-2">
+                    • Drag to pan the view<br>
+                    • Scroll to zoom in/out<br>
+                    • Click connections to see imports
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        <!-- Resizer -->
+        <div id="resizer" class="resizer"></div>
 
         <!-- Main Content Area -->
         <div class="flex-1 relative">
@@ -255,8 +285,48 @@ function generateMainDashboard(baseDir, reports, parentDirName) {
       </div>
 
       <script>
+        // Move resizer code to the top of the script
+        // Initialize resizer functionality immediately
+        (function initResizer() {
+          const resizer = document.getElementById('resizer');
+          const sidebar = document.getElementById('sidebar');
+          let isResizing = false;
+          let lastDownX = 0;
+
+          resizer.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            lastDownX = e.clientX;
+            resizer.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            
+            // Prevent text selection while resizing
+            document.body.style.userSelect = 'none';
+          });
+
+          document.addEventListener('mousemove', function(e) {
+            if (!isResizing) return;
+
+            const delta = e.clientX - lastDownX;
+            lastDownX = e.clientX;
+            
+            const newWidth = sidebar.offsetWidth + delta;
+            if (newWidth >= 200 && newWidth <= 600) {
+              sidebar.style.width = newWidth + 'px';
+            }
+          });
+
+          document.addEventListener('mouseup', function() {
+            if (!isResizing) return;
+            
+            isResizing = false;
+            resizer.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+          });
+        })();
+
         const graphData = ${JSON.stringify(prepareGraphData(reports, baseDir))};
-        const chordData = ${JSON.stringify(chordData)};
+        const chordData = ${JSON.stringify(prepareChordData(reports, baseDir))};
         
         function initializeChordDiagram() {
           const width = document.getElementById('graphContainer').clientWidth;
@@ -984,6 +1054,90 @@ function prepareGraphData(reports, baseDir) {
   return { nodes, links };
 }
 
+function generateCombinedDashboard(baseDir, data) {
+  const template = `
+    <!DOCTYPE html>
+    <html class="dark">
+    <head>
+      <title>Import Checker Analysis</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script src="https://d3js.org/d3.v7.min.js"></script>
+      <script src="https://d3js.org/d3-chord/3"></script>
+      <script>
+        tailwind.config = {
+          darkMode: 'class',
+          theme: {
+            extend: {
+              colors: {
+                'dark-nav': '#0A0A0A',
+                'dark-bg': '#111111'
+              }
+            }
+          }
+        }
+      </script>
+    </head>
+    <body class="bg-dark-bg text-gray-200">
+      <!-- Header -->
+      <header class="bg-dark-nav border-b border-gray-800 px-6 py-4">
+        <div class="flex items-center space-x-8">
+          <h1 class="text-xl font-bold text-white">Import Checker</h1>
+          
+          <!-- Analysis Type Tabs -->
+          <div class="flex space-x-4">
+            <button class="tab-btn px-4 py-2 text-blue-500 border-b-2 border-blue-500" data-tab="siblings">
+              Sibling Imports
+            </button>
+            <button class="tab-btn px-4 py-2 text-gray-400 border-b-2 border-transparent hover:text-gray-300" data-tab="structure">
+              Structure Analysis
+            </button>
+          </div>
+
+          <a href="https://www.npmjs.com/package/import-checker" target="_blank" class="ml-auto text-blue-400 hover:text-blue-300 transition-colors">
+            View on NPM
+          </a>
+        </div>
+      </header>
+
+      <!-- Content Areas -->
+      <div class="h-[calc(100vh-64px)]">
+        <div id="siblingsView" class="tab-content h-full">
+          <iframe src="${data.dirName}/import-analysis/import-analysis-${data.dirName}/index.html" class="w-full h-full border-0"></iframe>
+        </div>
+        <div id="structureView" class="tab-content h-full hidden">
+          <iframe src="${data.dirName}/structure-analysis/structure-analysis-${data.dirName}/structure-analysis.html" class="w-full h-full border-0"></iframe>
+        </div>
+      </div>
+
+      <script>
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const tabId = btn.dataset.tab;
+            
+            // Update button states
+            document.querySelectorAll('.tab-btn').forEach(b => {
+              b.classList.remove('text-blue-500', 'border-blue-500');
+              b.classList.add('text-gray-400', 'border-transparent');
+            });
+            btn.classList.remove('text-gray-400', 'border-transparent');
+            btn.classList.add('text-blue-500', 'border-blue-500');
+            
+            // Show/hide content
+            document.querySelectorAll('.tab-content').forEach(content => {
+              content.classList.add('hidden');
+            });
+            document.getElementById(tabId + 'View').classList.remove('hidden');
+          });
+        });
+      </script>
+    </body>
+    </html>
+  `;
+
+  fs.writeFileSync(path.join(baseDir, "index.html"), template);
+}
+
 program
   .name("import-checker")
   .description("Analyze cross-feature imports in React projects");
@@ -1095,7 +1249,7 @@ program
   .argument("<directory>", "Target directory to analyze")
   .option(
     "-s, --skip <directories>",
-    "Comma-separated list of directory names to skip",
+    "Directories to skip in structure analysis",
     "components",
   )
   .option("-v, --verbose", "Show detailed output")
@@ -1111,11 +1265,16 @@ program
       const baseOutputDir = options.output || "structure-analysis";
       const outputDir = path.resolve(process.cwd(), baseOutputDir);
 
+      // Get directory name for the report folder
+      const dirName = path.basename(targetDir);
+      const reportDir = path.join(outputDir, `structure-analysis-${dirName}`);
+      fs.ensureDirSync(reportDir);
+
       const result = analyzeStructure(targetDir, {
         skipDirectories,
         generateReports: true,
         generateHtml: options.html,
-        outputDir,
+        outputDir: reportDir,
       });
 
       if (result.violations.length === 0) {
@@ -1136,12 +1295,85 @@ program
       if (options.html) {
         console.log(
           chalk.blue(
-            `\nGenerated HTML report: ${path.join(outputDir, "structure-analysis.html")}`,
+            `\nGenerated HTML report: ${path.join(reportDir, "structure-analysis.html")}`,
           ),
         );
       }
     } catch (error) {
       console.error(chalk.red(`Error analyzing structure: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
+// Add this new command
+program
+  .command("check-all")
+  .description("Run both sibling imports and structure analysis")
+  .argument("<directory>", "Target directory to analyze")
+  .option("-v, --verbose", "Show detailed output")
+  .option("--no-html", "Skip HTML report generation")
+  .option("-o, --output <path>", "Output directory path")
+  .option(
+    "-s, --skip <directories>",
+    "Directories to skip in structure analysis",
+    "components",
+  )
+  .action((directory, options) => {
+    const targetDir = path.resolve(process.cwd(), directory);
+    console.log(chalk.blue(`Analyzing directory: ${targetDir}`));
+
+    try {
+      const baseOutputDir = options.output || "import-checker-analysis";
+      const outputDir = path.resolve(process.cwd(), baseOutputDir);
+      fs.ensureDirSync(outputDir);
+
+      // Get directory name and create its folder
+      const dirName = path.basename(targetDir);
+      const dirOutputDir = path.join(outputDir, dirName);
+      fs.ensureDirSync(dirOutputDir);
+
+      // Create subdirectories for each analysis type
+      const siblingsOutputDir = path.join(dirOutputDir, "import-analysis");
+      const structureOutputDir = path.join(dirOutputDir, "structure-analysis");
+      fs.ensureDirSync(siblingsOutputDir);
+      fs.ensureDirSync(structureOutputDir);
+
+      // Run structure analysis
+      const skipDirectories = options.skip.split(",").map((d) => d.trim());
+      const structureResult = analyzeStructure(targetDir, {
+        skipDirectories,
+        generateReports: true,
+        generateHtml: true,
+        outputDir: structureOutputDir,
+        reportNamePrefix: "structure-analysis",
+        hideHeader: true,
+      });
+
+      // Run sibling imports analysis with modified options
+      const siblingsResult = analyzeSiblingDirectories(targetDir, {
+        // eslint-disable-next-line node/no-unsupported-features/es-syntax
+        ...options,
+        outputDir: siblingsOutputDir,
+        html: true,
+        generateMainDashboard: true,
+        reportNamePrefix: "index",
+        hideHeader: true,
+      });
+
+      // Generate combined dashboard
+      generateCombinedDashboard(outputDir, {
+        structure: structureResult,
+        siblings: siblingsResult,
+        dirName,
+      });
+
+      console.log(
+        chalk.blue(
+          `\nGenerated combined report: ${path.join(outputDir, "index.html")}`,
+        ),
+      );
+    } catch (error) {
+      console.error(chalk.red(`Error analyzing directory: ${error.message}`));
       process.exit(1);
     }
   });
